@@ -20,7 +20,7 @@ pipeline {
 
         stage('Trivy FS Scan') {
             steps {
-            sh  "trivy fs --format table -o fs.html ."
+            sh   "trivy fs --security-checks vuln,config --severity HIGH,CRITICAL --format table -o fs.html ."
             }
         }
 
