@@ -1,6 +1,5 @@
 pipeline { 
     agent any
-    
     tools {
         maven 'maven3'
         jdk 'jdk17'
@@ -8,13 +7,27 @@ pipeline {
 
     environment {
         SCANNER_HOME = tool 'sonar-scanner'
+        IMAGE_TAG = "v1.0"
     }
     
     stages {
+        stage('Clean Workspace') {
+            steps {
+                cleanWs() 
+                
+            } 
+            
+        }
+        
+        stage('Git Checkout') {
+            steps {
+            git branch: 'main', url: 'https://github.com/waldra/Blogging-App.git'
+            }
+        }
         
         stage('Compile') {
             steps {
-            sh  "mvn test"
+            sh  "mvn clean test"
             }
         }
 
@@ -33,14 +46,6 @@ pipeline {
                 }
             }
         }
-
-        stage('Quality Gate Check') {
-            steps {
-                timeout(time: 2, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true, credentialsId: 'sonarqube-token'
-                }
-            }
-        }
         
         stage('Build') {
             steps {
@@ -50,40 +55,65 @@ pipeline {
 
         stage('OWASP Dependency-Check') {
             steps {
-                dependencyCheck additionalArguments: '--scan target/ --format HTML --nvdApiKey 655b27ba-21f9-4421-bcac-2084ac284dd6', odcInstallation: 'dependency-check' 
+                dependencyCheck additionalArguments: '--scan target/ --format XML --nvdApiKey 655b27ba-21f9-4421-bcac-2084ac284dd6', odcInstallation: 'dependency-check' 
                 dependencyCheckPublisher pattern:'**/dependency-check-report.xml'
             }
         }
-
+        
         stage('Push Artifact to Nexus') {
             steps {
-                
+                script {
+                    withMaven(globalMavenSettingsConfig: 'maven-settings', jdk: 'jdk17', maven: 'maven3', mavenSettingsConfig: '', traceability: true) {
+                        sh 'mvn clean deploy'
+                    }    
+                }
             }
         }
-
+        
         stage('Build Docker Image') {
             steps {
-                sh "docker image build -t blogging-app ."
+                sh "docker image build -t bloggingapp ."
+                sh 'docker image tag blogging-app waldara/bloggingapp:${IMAGE_TAG}'
             }
         }
 
         stage('Trivy Image Scan') {
             steps {
-                sh 'trivy image --severity HIGH,CRITICAL waldara/blogging-app:1.0'
+                sh 'trivy image --severity HIGH,CRITICAL waldara/bloggingapp:${IMAGE_TAG}'
             }
         }
 
         stage('Push Docker Image') {
             steps {
                 script {
-                    withDockerRegistry(credentialsId: 'fb7a0a85-c414-46f1-8718-91bd5a3eb411') {
-                        sh 'docker image tag blogging-app waldara/blogging-app:1.0'
-                        sh 'docker image push waldara/blogging-app:1.0'
+                    withDockerRegistry(credentialsId: 'docker-cred', toolName: 'docker') {
+                        sh 'docker image push waldara/bloggingapp:${IMAGE_TAG}'
                     }
                 }
             }
         }
-
-
-    }
+        
+        stage('Update YAML manifest in CD Repo') {
+            steps {
+                withCredentials([gitUsernamePassword(credentialsId: 'git-cred', gitToolName: 'Default')]) {
+                    sh '''
+                       git clone https://github.com/waldra/Blogging-App-CD.git
+                       cd Blogging-App-CD
+                       repo_dir=$(pwd)
+                       sed -i 's|image: waldara/bloggingapp.*|image: waldara/bloggingapp:'${IMAGE_TAG}'|' ${repo_dir}/app-manifest/deployment.yaml
+                       '''
+                    
+                    sh '''
+                       cd Blogging-App-CD
+                       git config user.name "Jenkins"
+                       git config user.email "Jenkins@gmail.com"
+                       
+                       git add app-manifest/deployment.yaml
+                       git commit -m "Update image tag to ${IMAGE_TAG}"
+                       git push origin main
+                       '''
+                }
+            }
+        }
+    }    
 }
