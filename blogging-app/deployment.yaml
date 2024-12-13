@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: bloggingapp
-          image: waldara/bloggingapp:1.0 
+          image: waldara/bloggingapp:v1.0 
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
