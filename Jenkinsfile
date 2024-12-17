@@ -59,7 +59,7 @@ pipeline {
                 dependencyCheckPublisher pattern:'**/dependency-check-report.xml'
             }
         }
-        
+        /*
         stage('Push Artifact to Nexus') {
             steps {
                 script {
@@ -68,7 +68,7 @@ pipeline {
                     }    
                 }
             }
-        }
+        }*/
         
         stage('Build Docker Image') {
             steps {
