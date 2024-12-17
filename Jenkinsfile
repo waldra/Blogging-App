@@ -63,7 +63,7 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 sh "docker image build -t bloggingapp ."
-                sh 'docker image tag blogging-app waldara/bloggingapp:${IMAGE_TAG}'
+                sh 'docker image tag bloggingapp waldara/bloggingapp:${IMAGE_TAG}'
             }
         }
 
@@ -85,7 +85,7 @@ pipeline {
         
         stage('Update YAML manifest in CD Repo') {
             steps {
-                withCredentials([gitUsernamePassword(credentialsId: 'git-cred', gitToolName: 'Default')]) {
+                withCredentials([gitUsernamePassword(credentialsId: 'github-cred', gitToolName: 'Default')]) {
                     sh '''
                        git clone https://github.com/waldra/Blogging-App-CD.git
                        cd Blogging-App-CD
