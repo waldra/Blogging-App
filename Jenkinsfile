@@ -58,22 +58,12 @@ pipeline {
                 dependencyCheck additionalArguments: '--scan target/ --format XML --nvdApiKey 655b27ba-21f9-4421-bcac-2084ac284dd6', odcInstallation: 'dependency-check' 
                 dependencyCheckPublisher pattern:'**/dependency-check-report.xml'
             }
-        }
-        /*
-        stage('Push Artifact to Nexus') {
-            steps {
-                script {
-                    withMaven(globalMavenSettingsConfig: 'maven-settings', jdk: 'jdk17', maven: 'maven3', mavenSettingsConfig: '', traceability: true) {
-                        sh 'mvn clean deploy'
-                    }    
-                }
-            }
-        }*/
+        } 
         
         stage('Build Docker Image') {
             steps {
                 sh "docker image build -t bloggingapp ."
-                sh 'docker image tag blogging-app waldara/bloggingapp:${IMAGE_TAG}'
+                sh 'docker image tag bloggingapp waldara/bloggingapp:${IMAGE_TAG}'
             }
         }
 
@@ -95,7 +85,7 @@ pipeline {
         
         stage('Update YAML manifest in CD Repo') {
             steps {
-                withCredentials([gitUsernamePassword(credentialsId: 'git-cred', gitToolName: 'Default')]) {
+                withCredentials([gitUsernamePassword(credentialsId: 'github-cred', gitToolName: 'Default')]) {
                     sh '''
                        git clone https://github.com/waldra/Blogging-App-CD.git
                        cd Blogging-App-CD
